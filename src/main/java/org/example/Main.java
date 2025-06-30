@@ -5,32 +5,8 @@ import java.util.*;
 public class Main {
 
     public static final boolean DEBUG = true;
-
-
-    static class Job {
-        int id;
-        int width, height;
-        int x = -1, y = -1;  // Hier wird gespeichert, auf welcher Position dieser Job auf einer Platte platziert wurde (zur Kontrolle)
-        Plate placedOn = null;
-
-
-        public Job(int id, int width, int height) {
-            this.id = id;
-            this.width = width;
-            this.height = height;
-        }
-
-        @Override
-        public String toString() {
-            if (placedOn != null) {
-                return "Job " + id + ": " + width + "mm x " + height + "mm -> " +
-                        "Platte: " + placedOn.name +
-                        ", Position: (" + x + ", " + y + ")";
-            } else {
-                return "Job " + id + ": " + width + "mm x " + height + "mm -> nicht platziert";
-            }
-        }
-    }
+    public static final boolean RotateJobs = true;
+    public static final boolean AllAlgorithms = true;
 
     static class FreeRectangle {
         int x, y, width, height;
@@ -42,6 +18,7 @@ public class Main {
             this.height = height;
         }
     }
+
 
     static class Plate {
         String name;
@@ -58,8 +35,8 @@ public class Main {
             freeRects.add(new FreeRectangle(0, 0, width, height));
         }
 
+        // =============== First-Fit Shelf-Packing =============== //
         public boolean placeJobFFShelf(Job job) {
-            // =============== First-Fit Shelf-Packing =============== //
             // First-Fit Algorithmus, aber jede Zeile wird als ein "Regal mit gleichmäßiger Höhe" betrachtet.
             // Ein neuer Job, der zwar in Regal 2 unter einem bereits platzierten Job von Regal 1 passen würde, könnte möglicherweise nicht platziert werden,
             // weil der höchste Job von Regal 1 die Höhe des Regals bestimmt.
@@ -91,9 +68,16 @@ public class Main {
         }
 
 
-        public boolean placeJobMaxRectsBestFit(Job job) {
-            FreeRectangle bestRect = null;
+        static class BestFitResult {
+            public FreeRectangle bestRect;
             int bestScore = Integer.MAX_VALUE;
+            boolean useRotated = false;
+            int bestWidth = -1;
+            int bestHeight = -1;
+        }
+
+        public boolean placeJobMaxRectsBestFit(Job job) {
+            BestFitResult result = new BestFitResult();
 
             System.out.println("\n\n============== Job " + job.id + " (" + job.width + "x" + job.height + ") ==============");
 
@@ -102,42 +86,35 @@ public class Main {
                 FreeRectangle rect = freeRects.get(i);
                 System.out.println("  Prüfe FreeRect " + i + ": Startkoordinaten (x=" + rect.x + ", y=" + rect.y + "), Breite=" + rect.width + "mm, Höhe=" + rect.height + "mm");
 
-                // Passt der Job in dieses freie Rechteck?
-                if (job.width <= rect.width && job.height <= rect.height) {
-                    System.out.println("    -> Passt!");
-                    int leftoverHoriz = rect.width - job.width;
-                    System.out.println("      Berechnung leftoverHoriz: rect.width (" + rect.width + ") - job.width (" + job.width + ") = " + leftoverHoriz);
-                    int leftoverVert = rect.height - job.height;
-                    System.out.println("      Berechnung leftoverVert: rect.height (" + rect.height + ") - job.height (" + job.height + ") = " + leftoverVert);
-                    int shortSideFit = Math.min(leftoverHoriz, leftoverVert);
-                    System.out.println("      Berechnung shortSideFit: min(leftoverHoriz (" + leftoverHoriz + "), leftoverVert (" + leftoverVert + ")) = " + shortSideFit);
-                    System.out.println("      current bestScore = " + bestScore);
+                // Originalposition testen
+                testAndUpdateBestFit(job.width, job.height, rect, false, result);
+                // Gedrehte Position testen
+                if (RotateJobs) testAndUpdateBestFit(job.height, job.width, rect, true, result);
 
-                    // Kriterium für "Best Fit": Das Rechteck, worin der Job den kleinsten Abstand entweder vertikal ODER horizontal zum nächsten freien Rechteck oder zum Rand hat.
-                    // Weitere Möglichkeit für "Best Fit": durchschnittlicher Abstand vertikal UND horizontal zum jeweiligen nächsten freien Rechteck oder zum Rand.
-                    if (shortSideFit < bestScore) {
-                        bestScore = shortSideFit;
-                        bestRect = rect;  // Bestes freies Rechteck merken
-                        System.out.println("      -> Neuer Best-Fit gefunden! bestScore = " + bestScore);
-
-                    }
-                } else {
-                    System.out.println("    -> Passt NICHT.");
-                }
             }
             // Wenn kein passender freier Bereich gefunden wurde: Job passt nicht
-            if (bestRect == null) {
+            if (result.bestRect == null) {
                 System.out.println("-> Kein passendes Rechteck gefunden für Job " + job.id);
                 return false;
             }
-            // Platziere den Job im besten gefundenen Rechteck
-            job.x = bestRect.x;
-            job.y = bestRect.y;
+
+            // Aktuellen Job speichern
+            if (result.useRotated) {
+                System.out.println("-> Job wird GEDREHT platziert! (" + job.width + "x" + job.height + " → " + result.bestWidth + "x" + result.bestHeight + ")");
+                job.rotated = true;
+            } else {
+                System.out.println("-> Job wird in Originalausrichtung platziert.");
+            }
+            job.width = result.bestWidth;
+            job.height = result.bestHeight;
+            job.x = result.bestRect.x;
+            job.y = result.bestRect.y;
             job.placedOn = this;
             jobs.add(job);
+
             System.out.println("-> Platziert in (" + job.x + ", " + job.y + ") auf " + name);
-            // Zerschneide das belegte Rechteck in neue freie Bereiche
-            splitFreeRect(bestRect, job);
+
+            splitFreeRect(result.bestRect, job);
 
             // ===== Zwischenschritte visualisieren ===== //
             if (DEBUG) {
@@ -150,8 +127,32 @@ public class Main {
                 }
             }
 
-
             return true;
+        }
+
+        private void testAndUpdateBestFit(int testWidth, int testHeight, FreeRectangle rect, boolean rotated, BestFitResult result) {
+            if (testWidth <= rect.width && testHeight <= rect.height) {
+                String ausrichtung = rotated ? "GEDREHTE Ausrichtung" : "Originalausrichtung";
+                int leftoverHoriz = rect.width - testWidth;
+                int leftoverVert = rect.height - testHeight;
+                int shortSideFit = Math.min(leftoverHoriz, leftoverVert);
+                System.out.println("    -> Passt in " + ausrichtung + "!");
+                System.out.println("       Berechnung leftoverHoriz: " + rect.width + " - " + testWidth + " = " + leftoverHoriz);
+                System.out.println("       Berechnung leftoverVert: " + rect.height + " - " + testHeight + " = " + leftoverVert);
+                System.out.println("       shortSideFit = " + shortSideFit + ", aktueller bestScore = " + result.bestScore);
+                // Kriterium für "Best Fit": Das Rechteck, worin der Job den kleinsten Abstand entweder vertikal ODER horizontal zum nächsten freien Rechteck oder zum Rand hat.
+                // Weitere Möglichkeit für "Best Fit": durchschnittlicher Abstand vertikal UND horizontal zum jeweiligen nächsten freien Rechteck oder zum Rand.
+                if (shortSideFit < result.bestScore) {
+                    result.bestScore = shortSideFit;
+                    result.bestRect = rect;
+                    result.useRotated = rotated;
+                    result.bestWidth = testWidth;
+                    result.bestHeight = testHeight;
+                    System.out.println("       -> Neuer Best-Fit (" + ausrichtung + ")!");
+                }
+            } else {
+                System.out.println("    -> Passt NICHT in " + (rotated ? "GEDREHTER" : "Original") + " Ausrichtung.");
+            }
         }
 
 
@@ -185,22 +186,26 @@ public class Main {
 
 
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        System.out.print("Algorithmus wählen (1 = First Fit, 2 = MaxRects): ");
-        String mode = scanner.nextLine().trim();
-
         List<Job> jobs = Arrays.asList(
                 new Job(1, 402, 480),
                 new Job(2, 305, 222),
                 new Job(3, 220, 573),
                 new Job(4, 205, 153),
-                new Job(5, 243, 188)
+                new Job(5, 243, 188),
+                new Job(6, 243,188),
+                new Job(7,205,153)
         );
-
         Plate plateA = new Plate("Plate A", 963, 650);
 
+        String mode;
+        Scanner scanner = new Scanner(System.in);
+        if (AllAlgorithms) {
+            System.out.print("Algorithmus wählen (1 = First Fit, 2 = MaxRects): ");
+            mode = scanner.nextLine().trim();
+        } else mode = "2";
 
-        for (Job job : jobs) {
+        for (int i = 0; i < jobs.size(); i++) {
+            Job job = jobs.get(i);
             boolean placed;
             if (mode.equals("1")) {
                 placed = plateA.placeJobFFShelf(job);
@@ -213,10 +218,10 @@ public class Main {
         }
 
         System.out.println("\n=== Job Placement ===");
-        for (Job job : jobs) {
+        for (int i = 0; i < jobs.size(); i++) {
+            Job job = jobs.get(i);
             System.out.println(job);
         }
-
         System.out.println("\n=== Used Plate ===");
         System.out.println(plateA.name + " hat " + plateA.jobs.size() + " Jobs.");
 
