@@ -4,6 +4,9 @@ import java.util.*;
 
 public class Main {
 
+    public static final boolean DEBUG = true;
+
+
     static class Job {
         int id;
         int width, height;
@@ -110,10 +113,11 @@ public class Main {
                     System.out.println("      Berechnung shortSideFit: min(leftoverHoriz (" + leftoverHoriz + "), leftoverVert (" + leftoverVert + ")) = " + shortSideFit);
                     System.out.println("      current bestScore = " + bestScore);
 
-                    // Der "Best Fit" ist das leere Rechteck, worin der Job den kleinsten möglichen Abstand horizontal bzw. vertikal haben würde
+                    // Kriterium für "Best Fit": Das Rechteck, worin der Job den kleinsten Abstand entweder vertikal ODER horizontal zum nächsten freien Rechteck oder zum Rand hat.
+                    // Weitere Möglichkeit für "Best Fit": durchschnittlicher Abstand vertikal UND horizontal zum jeweiligen nächsten freien Rechteck oder zum Rand.
                     if (shortSideFit < bestScore) {
                         bestScore = shortSideFit;
-                        bestRect = rect;  // Merke dir das beste Rechteck
+                        bestRect = rect;  // Bestes freies Rechteck merken
                         System.out.println("      -> Neuer Best-Fit gefunden! bestScore = " + bestScore);
 
                     }
@@ -134,6 +138,19 @@ public class Main {
             System.out.println("-> Platziert in (" + job.x + ", " + job.y + ") auf " + name);
             // Zerschneide das belegte Rechteck in neue freie Bereiche
             splitFreeRect(bestRect, job);
+
+            // ===== Zwischenschritte visualisieren ===== //
+            if (DEBUG) {
+                PlateVisualizer.showPlate(this, "2");
+                // Wichtig: Mit Pause, sonst läuft das Programm zu schnell durch und es wird in jedem Fenster nur das Endergebnis angezeigt.
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
+
             return true;
         }
 
@@ -167,7 +184,6 @@ public class Main {
     }
 
 
-
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Algorithmus wählen (1 = First Fit, 2 = MaxRects): ");
@@ -183,6 +199,7 @@ public class Main {
 
         Plate plateA = new Plate("Plate A", 963, 650);
 
+
         for (Job job : jobs) {
             boolean placed;
             if (mode.equals("1")) {
@@ -195,7 +212,6 @@ public class Main {
             }
         }
 
-
         System.out.println("\n=== Job Placement ===");
         for (Job job : jobs) {
             System.out.println(job);
@@ -203,6 +219,9 @@ public class Main {
 
         System.out.println("\n=== Used Plate ===");
         System.out.println(plateA.name + " hat " + plateA.jobs.size() + " Jobs.");
+
+        // Visualisieren
+        PlateVisualizer.showPlate(plateA, mode);
     }
 
 }
