@@ -5,12 +5,14 @@ import java.awt.*;
 import java.util.List;
 
 public class PlateVisualizer extends JPanel {
-    Main.Plate plate;
+    Plate plate;
+    MaxRectBF maxRectBF;
     private final String mode;
 
-    public PlateVisualizer(Main.Plate plate, String mode) {
+    public PlateVisualizer(Plate plate, String mode, MaxRectBF maxRectBF) {
         this.plate = plate;
         this.mode = mode;
+        this.maxRectBF = maxRectBF;
         // Panelgröße (Panel innerhalb des J-Frame-Fensters) initialisieren
         setPreferredSize(new Dimension(plate.width + 50, plate.height + 50));
     }
@@ -47,6 +49,7 @@ public class PlateVisualizer extends JPanel {
             g2d.drawString("Job " + job.id, job.x + 5, job.y + 15);
             g2d.drawString(job.width + "x" + job.height, job.x + 5, job.y + 30);
             if (job.rotated) g2d.drawString("(gedreht)", job.x + 5, job.y + 45);
+            g2d.drawString("Order: " + job.placementOrder, job.x + 5, job.y + 60);
         }
 
         // === Freie Rechtecke ===
@@ -54,8 +57,8 @@ public class PlateVisualizer extends JPanel {
             // Strichlinie für die Umrandung definieren
             g2d.setStroke(new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{6}, 0));
             g2d.setFont(new Font("Arial", Font.PLAIN, 11));
-            for (int i = 0; i < plate.freeRects.size(); i++) {
-                Main.FreeRectangle rect = plate.freeRects.get(i);
+            for (int i = 0; i < maxRectBF.freeRects.size(); i++) {
+                MaxRectBF.FreeRectangle rect = maxRectBF.freeRects.get(i);
                 // Füllung
                 g2d.setColor(new Color(255, 0, 0, 50)); // hellrot
                 g2d.fillRect(rect.x, rect.y, rect.width, rect.height);
@@ -76,12 +79,12 @@ public class PlateVisualizer extends JPanel {
 
     // Öffnet ein Swing-Fenster (Framework javax.swing), dass die aktuell definierten Zeichnungen visualisiert.
     // J-Frame ist eine Klasse innerhalb des Frameworks, die das Fenster erzeugt.
-    public static void showPlate(Main.Plate plate, String mode) {
+    public static void showPlate(Plate plate, String mode, MaxRectBF maxRectBF) {
         // GUI-Thread starten
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Plate Visualizer - " + plate.name);  // Initialisiert das Fenster
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  // Beendet das Programm (auch die main), wenn das Fenster geschlossen wird
-            frame.getContentPane().add(new PlateVisualizer(plate, mode));  // Füge das Panel in das J-Frame-Fenster ein
+            frame.getContentPane().add(new PlateVisualizer(plate, mode, maxRectBF));  // Füge das Panel in das J-Frame-Fenster ein
             frame.pack();  // Fenster auf optimale Größe bringen. Entspricht setPreferredSize(new Dimension(plate.width + 50, plate.height + 50));
             frame.setLocationRelativeTo(null);  // Fenster zentrieren
             frame.setVisible(true);  // Hier ruft Swing automatisch die Methode paintComponent(Graphics g) auf
