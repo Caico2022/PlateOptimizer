@@ -6,13 +6,13 @@ import java.util.List;
 
 public class PlateVisualizer extends JPanel {
     Plate plate;
-    MaxRectBF maxRectBF;
+    Object algorithm;  // Kann MaxRectBF oder MaxRectBFMerge sein
     private final String mode;
 
-    public PlateVisualizer(Plate plate, String mode, MaxRectBF maxRectBF) {
+    public PlateVisualizer(Plate plate, String mode, Object algorithm) {
         this.plate = plate;
         this.mode = mode;
-        this.maxRectBF = maxRectBF;
+        this.algorithm = algorithm;
         // Panelgröße (Panel innerhalb des J-Frame-Fensters) initialisieren
         setPreferredSize(new Dimension(plate.width + 50, plate.height + 50));
     }
@@ -53,12 +53,14 @@ public class PlateVisualizer extends JPanel {
         }
 
         // === Freie Rechtecke ===
-        if ("2".equals(mode)) {
+        if ("2".equals(mode) && algorithm instanceof MaxRectBF) {
             // Strichlinie für die Umrandung definieren
             g2d.setStroke(new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{6}, 0));
             g2d.setFont(new Font("Arial", Font.PLAIN, 11));
-            for (int i = 0; i < maxRectBF.freeRects.size(); i++) {
-                MaxRectBF.FreeRectangle rect = maxRectBF.freeRects.get(i);
+            // Holt die Liste der freien Rechtecke aus dem übergebenen Objekt algorithm
+            List<MaxRectBF.FreeRectangle> freeRects = ((MaxRectBF) algorithm).freeRects;
+            for (int i = 0; i < freeRects.size(); i++) {
+                MaxRectBF.FreeRectangle rect = freeRects.get(i);
                 // Füllung
                 g2d.setColor(new Color(255, 0, 0, 50)); // hellrot
                 g2d.fillRect(rect.x, rect.y, rect.width, rect.height);
@@ -71,7 +73,31 @@ public class PlateVisualizer extends JPanel {
                 g2d.drawString("F" + i, rect.x + 5, rect.y + 15);
                 g2d.drawString(rect.width + "x" + rect.height, rect.x + 5, rect.y + 30);
             }
+
+        } else if ("3".equals(mode) && algorithm instanceof MaxRectBFMerge) {
+            // Strichlinie für die Umrandung definieren
+            g2d.setStroke(new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{6}, 0));
+            g2d.setFont(new Font("Arial", Font.PLAIN, 11));
+            // Holt die Liste der freien Rechtecke aus dem übergebenen Objekt algorithm
+            List<MaxRectBFMerge.FreeRectangle> freeRects = ((MaxRectBFMerge) algorithm).freeRects;
+            for (int i = 0; i < freeRects.size(); i++) {
+                MaxRectBFMerge.FreeRectangle rect = freeRects.get(i);
+                // Füllung3
+                g2d.setColor(new Color(255, 0, 0, 50)); // hellrot
+                g2d.fillRect(rect.x, rect.y, rect.width, rect.height);
+                // Umrandung
+                g2d.setColor(Color.RED);
+                g2d.drawRect(rect.x, rect.y, rect.width, rect.height);
+                // Beschriftung
+                g2d.setColor(Color.RED.darker());
+                g2d.setFont(new Font("Arial", Font.BOLD, 16));
+                g2d.drawString("F" + i, rect.x + 5, rect.y + 15);
+                g2d.drawString(rect.width + "x" + rect.height, rect.x + 5, rect.y + 30);
+            }
+        } else {
+            if (!"1".equals(mode)) System.err.println("Algorithmus-Typ passt nicht zum Mode oder unbekannt.");
         }
+
         // Reset Stroke (für eventuelle spätere Zeichnungen)
         g2d.setStroke(new BasicStroke(1f));
     }
@@ -79,12 +105,12 @@ public class PlateVisualizer extends JPanel {
 
     // Öffnet ein Swing-Fenster (Framework javax.swing), dass die aktuell definierten Zeichnungen visualisiert.
     // J-Frame ist eine Klasse innerhalb des Frameworks, die das Fenster erzeugt.
-    public static void showPlate(Plate plate, String mode, MaxRectBF maxRectBF) {
+    public static void showPlate(Plate plate, String mode, Object algorithm) {
         // GUI-Thread starten
         SwingUtilities.invokeLater(() -> {
             JFrame frame = new JFrame("Plate Visualizer - " + plate.name);  // Initialisiert das Fenster
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);  // Beendet das Programm (auch die main), wenn das Fenster geschlossen wird
-            frame.getContentPane().add(new PlateVisualizer(plate, mode, maxRectBF));  // Füge das Panel in das J-Frame-Fenster ein
+            frame.getContentPane().add(new PlateVisualizer(plate, mode, algorithm));  // Füge das Panel in das J-Frame-Fenster ein
             frame.pack();  // Fenster auf optimale Größe bringen. Entspricht setPreferredSize(new Dimension(plate.width + 50, plate.height + 50));
             frame.setLocationRelativeTo(null);  // Fenster zentrieren
             frame.setVisible(true);  // Hier ruft Swing automatisch die Methode paintComponent(Graphics g) auf
